@@ -1,0 +1,26 @@
+{
+  "name": "celery-client",
+  "version": "0.0.1",
+  "description": "A client for Celery",
+  "main": "celery-client.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pastgift/celery-client-js.git"
+  },
+  "keywords": [
+    "celery"
+  ],
+  "author": {
+    "name": "Yiling Zhou",
+    "email": "pastgift@gmail.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pastgift/celery-client-js/issues"
+  },
+  "homepage": "https://github.com/pastgift/celery-client-js",
+  "dependencies": {
+    "redis": "2.7.1",
+    "uuid": "3.0.1"
+  }
+}
