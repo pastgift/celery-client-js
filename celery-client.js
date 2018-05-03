@@ -2,6 +2,8 @@
 
 var uuid = require('uuid');
 
+var DEFAULT_QUEUE = 'celery';
+
 var nope = function() {};
 
 var canonicalizeTaskOptions = function(taskOptions) {
@@ -26,7 +28,7 @@ var canonicalizeTaskOptions = function(taskOptions) {
 
   // Canonicalize properties
   taskOptions.priority = taskOptions.priority || 0;
-  taskOptions.queue = taskOptions.queue || 'celery';
+  taskOptions.queue = taskOptions.queue || DEFAULT_QUEUE;
 
   taskOptions.deliveryMode = 2;
   taskOptions.deliveryTag = uuid.v4();
@@ -43,7 +45,6 @@ var canonicalizeTaskOptions = function(taskOptions) {
  * @param {Object} [defaultTaskOptions.eta=null]           - Task ETA
  * @param {Object} [defaultTaskOptions.expires=null]       - Task expires
  * @param {Object} [defaultTaskOptions.retries=0]          - Task retry times
- * @param {Object} [defaultTaskOptions.expires=null]       - Task expires
  * @param {Object} [defaultTaskOptions.timeLimit=null]     - Task time limit (in seconds)
  * @param {Object} [defaultTaskOptions.softTimeLimit=null] - Task time limit (soft, in seconds)
  * @param {Object} [defaultTaskOptions.origin=null]        - Task sender name
@@ -56,18 +57,22 @@ function Client(brokerHandler, backendHandler, defaultTaskOptions) {
   self._brokerHandler      = brokerHandler;
   self._backendHandler     = backendHandler;
   self._defaultTaskOptions = canonicalizeTaskOptions(defaultTaskOptions) || {};
+
+  if (self._brokerHandler)  self.broker  = self._brokerHandler._handler;
+  if (self._backendHandler) self.backend = self._backendHandler._handler;
 };
 
-Client.prototype.putTask = function(task, args, kwargs, taskOptions, callback) {
+Client.prototype.putTask = function(task, args, kwargs, taskOptions, callback, onResultCallback) {
   var self = this;
 
+  args        = args   || [];
+  kwargs      = kwargs || {};
   taskOptions = canonicalizeTaskOptions(taskOptions) || {};
 
   var mergedTaskOptions = JSON.parse(JSON.stringify(self._defaultTaskOptions));
   Object.assign(mergedTaskOptions, taskOptions);
 
-  mergedTaskOptions = mergedTaskOptions;
-
+  self._backendHandler.onResult(mergedTaskOptions.id, onResultCallback || nope);
   self._brokerHandler.putTask(task, args, kwargs, mergedTaskOptions, callback || nope);
 };
 
@@ -81,6 +86,25 @@ Client.prototype.onResult = function(taskId, callback) {
   var self = this;
 
   self._backendHandler.onResult(taskId, callback || nope);
+};
+
+Client.prototype.listQueued = function(queue, callback) {
+  var self = this;
+
+  queue = queue || DEFAULT_QUEUE;
+  self._brokerHandler.listQueued(queue, callback || nope);
+};
+
+Client.prototype.listScheduled = function(callback) {
+  var self = this;
+
+  self._brokerHandler.listScheduled(callback || nope);
+};
+
+Client.prototype.listRecent = function(callback) {
+  var self = this;
+
+  self._backendHandler.listRecent(callback || nope);
 };
 
 exports.Client = Client;

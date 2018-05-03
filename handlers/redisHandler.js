@@ -17,45 +17,45 @@ RedisHandler.prototype.createMessage = function(task, args, kwargs, taskOptions)
 
   // Prepare body
   var embed = {
-    chord    : null,
-    callbacks: null,
-    errbacks : null,
-    chain    : null,
+    'chord'    : null,
+    'callbacks': null,
+    'errbacks' : null,
+    'chain'    : null,
   };
   var body = JSON.stringify([args, kwargs, embed]);
 
   var message = {
-    "body": body,
-    "headers": {
-      "lang"     : "py",                          // [Fixed value] ??
-      "task"     : task,                          // Task name in Celery
-      "id"       : taskOptions.id,                // Task ID
-      "root_id"  : taskOptions.id,                // Same to `headers.id`. For chained task tracing
-      "parent_id": null,                          // [Fixed value] For chained task tracing
-      "group"    : null,                          // [Fixed value] For paellel tasks
+    'body': body,
+    'headers': {
+      'lang'     : 'py',                          // [Fixed value] ??
+      'task'     : task,                          // Task name in Celery
+      'id'       : taskOptions.id,                // Task ID
+      'root_id'  : taskOptions.id,                // Same to `headers.id`. For chained task tracing
+      'parent_id': null,                          // [Fixed value] For chained task tracing
+      'group'    : null,                          // [Fixed value] For paellel tasks
 
-      "eta"      : taskOptions.eta,               // ETA (ISO8601, e.g. 2017-08-29T12:47:00.000Z)
-      "expires"  : taskOptions.expires,           // Expire time (ISO8601, e.g. 2017-08-29T12:47:00.000Z)
-      "retries"  : taskOptions.retries,           // Retry times
-      "timelimit": [
+      'eta'      : taskOptions.eta,               // ETA (ISO8601, e.g. 2017-08-29T12:47:00.000Z)
+      'expires'  : taskOptions.expires,           // Expire time (ISO8601, e.g. 2017-08-29T12:47:00.000Z)
+      'retries'  : taskOptions.retries,           // Retry times
+      'timelimit': [
         taskOptions.timeLimit,                    // Time limit (in seconds)
         taskOptions.softTimeLimit,                // Soft time limit (raise Exception, in seconds)
       ],
-      "origin"   : taskOptions.origin,            // Senders name
+      'origin'   : taskOptions.origin,            // Senders name
     },
-    "properties": {
-      "priority"      : taskOptions.priority,     // Task priority
-      "correlation_id": taskOptions.id,           // Same to `headers.id`
-      "reply_to"      : null,
-      "delivery_info" : {
-        "routing_key": taskOptions.queue,         // Queue name
-        "exchange"   : null
+    'properties': {
+      'priority'      : taskOptions.priority,     // Task priority
+      'correlation_id': taskOptions.id,           // Same to `headers.id`
+      'reply_to'      : null,
+      'delivery_info' : {
+        'routing_key': taskOptions.queue,         // Queue name
+        'exchange'   : null
       },
-      "delivery_mode" : taskOptions.deliveryMode, // Fixed value (1: Non-persistent, 2: Persistent)
-      "delivery_tag"  : taskOptions.deliveryTag,  // ??
+      'delivery_mode' : taskOptions.deliveryMode, // Fixed value (1: Non-persistent, 2: Persistent)
+      'delivery_tag'  : taskOptions.deliveryTag,  // ??
     },
-    "content-type"    : "application/json",       // [Fixed value] Content type
-    "content-encoding": "utf-8"                   // [Fixed value] Content encoding
+    'content-type'    : 'application/json',       // [Fixed value] Content type
+    'content-encoding': 'utf-8'                   // [Fixed value] Content encoding
   };
 
   return message;
@@ -90,7 +90,7 @@ RedisHandler.prototype.putTask = function(task, args, kwargs, taskOptions, callb
   var targetQueue = message.properties.delivery_info.routing_key;
   var taskToSend = JSON.stringify(message);
 
-  var pushFunc = taskOptions.priority > 0 'rpush' : 'lpush';
+  var pushFunc = taskOptions.priority > 0 ? 'rpush' : 'lpush';
   self._handler[pushFunc](targetQueue, taskToSend, function(err) {
     if (err) return callback(err);
 
@@ -130,6 +130,63 @@ RedisHandler.prototype.onResult = function(taskId, callback) {
 
   var key = self.createResultKey(taskId);
   resultHandler.subscribe(key);
+};
+
+RedisHandler.prototype.listQueued = function(queue, callback) {
+  var self = this;
+
+  self._handler.lrange(queue, 0, -1, function(err, result) {
+    if (err) return callback(err);
+
+    for (var i = 0; i < result.length; i++) {
+      result[i] = JSON.parse(result[i]);
+      result[i].body = result[i].body ? JSON.parse(result[i].body) : null;
+    }
+
+    return callback(null, result);
+  });
+};
+
+RedisHandler.prototype.listScheduled = function(callback) {
+  var self = this;
+
+  self._handler.hgetall('unacked', function(err, taskMap) {
+    if (err) return callback(err);
+
+    self._handler.zrange('unacked_index', 0, -1, 'withscores', function(err, tasks) {
+      if (err) return callback(err);
+
+      var result = [];
+      for (var i = 0; i < tasks.length; i += 2) {
+        var taskId = tasks[i];
+
+        var t = JSON.parse(taskMap[taskId])[0];
+        t.body = t.body ? JSON.parse(t.body) : null;
+
+        result.push(t);
+      }
+
+      return callback(null, result);
+    });
+  });
+};
+
+RedisHandler.prototype.listRecent = function(callback) {
+  var self = this;
+
+  self._handler.keys(self.taskKeyPrefix + '*', function(err, metaTaskIds) {
+    if (err) return callback(err);
+
+    self._handler.mget(metaTaskIds, function(err, result) {
+      if (err) return callback(err);
+
+      for (var i = 0; i < result.length; i++) {
+        result[i] = JSON.parse(result[i]);
+      }
+
+      return callback(null, result);
+    });
+  });
 };
 
 module.exports = RedisHandler;
