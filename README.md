@@ -22,13 +22,15 @@ var taskOptions = {
   retries  : 3,
   timeLimit: 5,
 }
-celeryClient.putTask('your-celery-project.task', args, kwargs, taskOptions, function(err, taskId) {
-  celeryClient.onResult(taskId, function(err, res) {
-    console.log('Result >', res);
-
+celeryClient.putTask('your-celery-project.task', args, kwargs, taskOptions,
+  function(err, taskId) {
+    console.log('Task >', taskId);
+  },
+  function(err, result) {
+    console.log('Result >', result);
     process.exit();
-  });
-});
+  }
+);
 ```
 
 ### Task option list

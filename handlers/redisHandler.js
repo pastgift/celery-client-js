@@ -177,6 +177,10 @@ RedisHandler.prototype.listRecent = function(callback) {
   self._handler.keys(self.taskKeyPrefix + '*', function(err, metaTaskIds) {
     if (err) return callback(err);
 
+    if (metaTaskIds.length <= 0) {
+      return callback(null, []);
+    }
+
     self._handler.mget(metaTaskIds, function(err, result) {
       if (err) return callback(err);
 
