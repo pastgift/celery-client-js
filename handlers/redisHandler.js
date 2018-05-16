@@ -22,7 +22,8 @@ RedisHandler.prototype.createMessage = function(task, args, kwargs, taskOptions)
     'errbacks' : null,
     'chain'    : null,
   };
-  var body = JSON.stringify([args, kwargs, embed]);
+  var message = JSON.stringify([args, kwargs, embed])
+  var body = new Buffer(message).toString('base64');
 
   var message = {
     'body': body,
@@ -41,9 +42,11 @@ RedisHandler.prototype.createMessage = function(task, args, kwargs, taskOptions)
         taskOptions.timeLimit,                    // Time limit (in seconds)
         taskOptions.softTimeLimit,                // Soft time limit (raise Exception, in seconds)
       ],
-      'origin'   : taskOptions.origin,            // Senders name
+      'origin': taskOptions.origin,               // Senders name
+      'extra' : taskOptions.extra,
     },
     'properties': {
+      'body_encoding' : 'base64',                 // [Fixed value] Body encoding
       'priority'      : taskOptions.priority,     // Task priority
       'correlation_id': taskOptions.id,           // Same to `headers.id`
       'reply_to'      : null,
@@ -55,7 +58,7 @@ RedisHandler.prototype.createMessage = function(task, args, kwargs, taskOptions)
       'delivery_tag'  : taskOptions.deliveryTag,  // ??
     },
     'content-type'    : 'application/json',       // [Fixed value] Content type
-    'content-encoding': 'utf-8'                   // [Fixed value] Content encoding
+    'content-encoding': 'utf-8',                  // [Fixed value] Content encoding
   };
 
   return message;
@@ -82,10 +85,10 @@ RedisHandler.prototype.parseResult = function(rawResult) {
   return result;
 };
 
-RedisHandler.prototype.putTask = function(task, args, kwargs, taskOptions, callback) {
+RedisHandler.prototype.putTask = function(name, args, kwargs, taskOptions, callback) {
   var self = this;
 
-  var message = self.createMessage(task, args, kwargs, taskOptions);
+  var message = self.createMessage(name, args, kwargs, taskOptions);
 
   var targetQueue = message.properties.delivery_info.routing_key;
   var taskToSend = JSON.stringify(message);
@@ -140,7 +143,7 @@ RedisHandler.prototype.listQueued = function(queue, callback) {
 
     for (var i = 0; i < result.length; i++) {
       result[i] = JSON.parse(result[i]);
-      result[i].body = result[i].body ? JSON.parse(result[i].body) : null;
+      result[i].body = JSON.parse(new Buffer(result[i].body, 'base64').toString());
     }
 
     return callback(null, result);
@@ -161,7 +164,7 @@ RedisHandler.prototype.listScheduled = function(callback) {
         var taskId = tasks[i];
 
         var t = JSON.parse(taskMap[taskId])[0];
-        t.body = t.body ? JSON.parse(t.body) : null;
+        t.body = JSON.parse(new Buffer(t.body, 'base64').toString());
 
         result.push(t);
       }

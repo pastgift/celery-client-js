@@ -62,7 +62,7 @@ function Client(brokerHandler, backendHandler, defaultTaskOptions) {
   if (self._backendHandler) self.backend = self._backendHandler._handler;
 };
 
-Client.prototype.putTask = function(task, args, kwargs, taskOptions, callback, onResultCallback) {
+Client.prototype.putTask = function(name, args, kwargs, taskOptions, callback, onResultCallback) {
   var self = this;
 
   args        = args   || [];
@@ -73,7 +73,7 @@ Client.prototype.putTask = function(task, args, kwargs, taskOptions, callback, o
   Object.assign(mergedTaskOptions, taskOptions);
 
   self._backendHandler.onResult(mergedTaskOptions.id, onResultCallback || nope);
-  self._brokerHandler.putTask(task, args, kwargs, mergedTaskOptions, callback || nope);
+  self._brokerHandler.putTask(name, args, kwargs, mergedTaskOptions, callback || nope);
 };
 
 Client.prototype.getResult = function(taskId, callback) {
