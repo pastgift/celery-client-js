@@ -2,7 +2,7 @@
 
 var uuid = require('uuid');
 
-var DEFAULT_QUEUE = 'celery';
+var DEFAULT_QUEUE = 'default';
 
 var nope = function() {};
 
@@ -28,7 +28,7 @@ var canonicalizeTaskOptions = function(taskOptions) {
 
   // Canonicalize properties
   taskOptions.priority = taskOptions.priority || 0;
-  taskOptions.queue = taskOptions.queue || DEFAULT_QUEUE;
+  taskOptions.queue    = taskOptions.queue    || DEFAULT_QUEUE;
 
   taskOptions.deliveryMode = 2;
   taskOptions.deliveryTag = uuid.v4();
