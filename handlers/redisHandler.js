@@ -122,7 +122,16 @@ RedisHandler.prototype.onResult = function(taskId, callback) {
 
   var resultHandler = self._handler.duplicate();
 
+  var t = setTimeout(function() {
+    resultHandler.unsubscribe();
+    resultHandler.quit();
+
+    return callback();
+  }, 3000);
+
   resultHandler.on('message', function(channel, result) {
+    clearTimeout(t);
+
     resultHandler.unsubscribe();
     resultHandler.quit();
 
