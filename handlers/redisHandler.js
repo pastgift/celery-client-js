@@ -2,6 +2,17 @@
 
 var redis = require('redis');
 
+function once(fn, context) {
+    var result;
+    return function () {
+        if (fn) {
+            result = fn.apply(context || this, arguments);
+            fn = null;
+        }
+        return result;
+    };
+}
+
 function RedisHandler(redisOptions) {
   var self = this;
 
@@ -122,23 +133,19 @@ RedisHandler.prototype.onResult = function(taskId, callback) {
 
   var resultHandler = self._handler.duplicate();
 
-  var t = setTimeout(function() {
+  var resultCallback = once(function(channel, result) {
     resultHandler.unsubscribe();
     resultHandler.quit();
 
-    return callback();
-  }, 3000);
-
-  resultHandler.on('message', function(channel, result) {
-    clearTimeout(t);
-
-    resultHandler.unsubscribe();
-    resultHandler.quit();
-
-    result = self.parseResult(result);
+    if (result) {
+      result = self.parseResult(result);
+    }
 
     return callback(null, result);
   });
+
+  setTimeout(resultCallback, 3000);
+  resultHandler.on('message', resultCallback);
 
   var key = self.createResultKey(taskId);
   resultHandler.subscribe(key);
