@@ -1,6 +1,6 @@
 {
   "name": "celery-client",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A client for Celery",
   "main": "celery-client.js",
   "repository": {
@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/pastgift/celery-client-js",
   "dependencies": {
-    "redis": "2.7.1",
+    "redis": "2.8.0",
     "uuid": "3.0.1"
   }
 }

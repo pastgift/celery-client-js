@@ -13,9 +13,22 @@ function once(fn, context) {
     };
 }
 
+function retryStrategy(options) {
+  if (options.error) {
+    console.error(options.error.toString());
+
+    if (options.error.code === 'ECONNREFUSED') {
+        return new Error('The Redis refused the connection');
+    }
+  }
+
+  return Math.min(options.attempt * 100, 3000);
+}
+
 function RedisHandler(redisOptions) {
   var self = this;
 
+  redisOptions.retry_strategy = retryStrategy;
   self._handler = redis.createClient(redisOptions);
 
   // Fixed in Celery for saving/publishing task result.
