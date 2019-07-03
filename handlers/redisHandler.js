@@ -1,6 +1,7 @@
 'use strict';
 
 var redis = require('redis');
+var async = require('async');
 
 function once(fn, context) {
     var result;
@@ -206,14 +207,35 @@ RedisHandler.prototype.listScheduled = function(callback) {
 RedisHandler.prototype.listRecent = function(callback) {
   var self = this;
 
-  self._handler.keys(self.taskKeyPrefix + '*', function(err, metaTaskIds) {
+  var foundMetaTaskIds = [];
+
+  var COUNT_LIMIT = 1000;
+  var nextCursor  = 0;
+  async.doUntil(function(untilCallback) {
+    self._handler.scan(nextCursor, 'MATCH', self.taskKeyPrefix + '*', 'COUNT', COUNT_LIMIT, function(err, dbRes) {
+      if (err) return untilCallback(err);
+
+      nextCursor = dbRes[0];
+
+      var metaTaskIds = dbRes[1];
+      if (Array.isArray(metaTaskIds) && metaTaskIds.length > 0) {
+        foundMetaTaskIds = foundMetaTaskIds.concat(metaTaskIds);
+      }
+
+      return untilCallback();
+    });
+
+  }, function() {
+    return parseInt(nextCursor) === 0;
+
+  }, function(err) {
     if (err) return callback(err);
 
-    if (metaTaskIds.length <= 0) {
+    if (foundMetaTaskIds.length <= 0) {
       return callback(null, []);
     }
 
-    self._handler.mget(metaTaskIds, function(err, result) {
+    self._handler.mget(foundMetaTaskIds, function(err, result) {
       if (err) return callback(err);
 
       for (var i = 0; i < result.length; i++) {
