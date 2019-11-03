@@ -3,17 +3,6 @@
 var redis = require('redis');
 var async = require('async');
 
-function once(fn, context) {
-    var result;
-    return function () {
-        if (fn) {
-            result = fn.apply(context || this, arguments);
-            fn = null;
-        }
-        return result;
-    };
-}
-
 function retryStrategy(options) {
   if (options.error) {
     console.error(options.error.toString());
@@ -35,6 +24,24 @@ function RedisHandler(redisOptions) {
   // Fixed in Celery for saving/publishing task result.
   // See [https://github.com/celery/celery/blob/v4.1.0/celery/backends/base.py#L518]
   self.taskKeyPrefix = 'celery-task-meta-';
+
+  self.resultHandlerCallbackMap = {};
+
+  self._resultHandler = self._handler.duplicate();
+  self._resultHandler.on('pmessage', function(pattern, channel, message) {
+    var taskId = self.fromResultKey(channel);
+
+    var _callback = self.resultHandlerCallbackMap[taskId];
+    delete self.resultHandlerCallbackMap[taskId];
+
+    if ('function' === typeof _callback) {
+      if (message) message = self.parseResult(message);
+      _callback(null, message);
+    }
+  });
+
+  var resultHandlerKey = self.createResultKey('*');
+  self._resultHandler.psubscribe(resultHandlerKey);
 };
 
 RedisHandler.prototype.createMessage = function(task, args, kwargs, taskOptions) {
@@ -97,6 +104,14 @@ RedisHandler.prototype.createResultKey = function(taskId) {
   return key;
 };
 
+RedisHandler.prototype.fromResultKey = function(resultKey) {
+  var self = this;
+
+  var taskId = resultKey.replace(self.taskKeyPrefix, '');
+
+  return taskId;
+};
+
 RedisHandler.prototype.parseResult = function(rawResult) {
   var self = this;
 
@@ -145,24 +160,17 @@ RedisHandler.prototype.getResult = function(taskId, callback) {
 RedisHandler.prototype.onResult = function(taskId, callback) {
   var self = this;
 
-  var resultHandler = self._handler.duplicate();
+  self.resultHandlerCallbackMap[taskId] = callback;
 
-  var resultCallback = once(function(channel, result) {
-    resultHandler.unsubscribe();
-    resultHandler.quit();
+  setTimeout(function() {
+    var _callback = self.resultHandlerCallbackMap[taskId];
+    delete self.resultHandlerCallbackMap[taskId];
 
-    if (result) {
-      result = self.parseResult(result);
+    if ('function' === typeof _callback) {
+      _callback(null, {status: 'TIMEOUT'});
     }
 
-    return callback(null, result);
-  });
-
-  setTimeout(resultCallback, 3000);
-  resultHandler.on('message', resultCallback);
-
-  var key = self.createResultKey(taskId);
-  resultHandler.subscribe(key);
+  }, 3000);
 };
 
 RedisHandler.prototype.listQueued = function(queue, callback) {
