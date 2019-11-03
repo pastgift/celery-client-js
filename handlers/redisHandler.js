@@ -167,10 +167,10 @@ RedisHandler.prototype.onResult = function(taskId, callback) {
     delete self.resultHandlerCallbackMap[taskId];
 
     if ('function' === typeof _callback) {
-      _callback(null, {status: 'TIMEOUT'});
+      _callback(null, null, {id: taskId, status: 'TIMEOUT'});
     }
 
-  }, 3000);
+  }, 5000);
 };
 
 RedisHandler.prototype.listQueued = function(queue, callback) {
