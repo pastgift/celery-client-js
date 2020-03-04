@@ -3,6 +3,15 @@
 var redis = require('redis');
 var async = require('async');
 
+var getConfig = function(c) {
+  return {
+    host    : c.host,
+    port    : c.port,
+    db      : c.db || c.database || 0,
+    password: c.password || undefined,
+  };
+};
+
 function retryStrategy(options) {
   if (options.error) {
     console.error(options.error.toString());
@@ -15,11 +24,11 @@ function retryStrategy(options) {
   return Math.min(options.attempt * 100, 3000);
 }
 
-function RedisHandler(redisOptions) {
+function RedisHandler(config) {
   var self = this;
 
-  redisOptions.retry_strategy = retryStrategy;
-  self._handler = redis.createClient(redisOptions);
+  config.retry_strategy = retryStrategy;
+  self._handler = redis.createClient(getConfig(config));
 
   // Fixed in Celery for saving/publishing task result.
   // See [https://github.com/celery/celery/blob/v4.1.0/celery/backends/base.py#L518]
@@ -157,8 +166,11 @@ RedisHandler.prototype.getResult = function(taskId, callback) {
   });
 };
 
-RedisHandler.prototype.onResult = function(taskId, callback) {
+RedisHandler.prototype.onResult = function(taskId, options, callback) {
   var self = this;
+
+  options = options || {};
+  options.resultWaitTimeout = options.resultWaitTimeout || 3000;
 
   self.resultHandlerCallbackMap[taskId] = callback;
 
@@ -170,7 +182,7 @@ RedisHandler.prototype.onResult = function(taskId, callback) {
       _callback(null, null, {id: taskId, status: 'TIMEOUT'});
     }
 
-  }, 5000);
+  }, options.resultWaitTimeout);
 };
 
 RedisHandler.prototype.listQueued = function(queue, callback) {

@@ -36,6 +36,15 @@ var canonicalizeTaskOptions = function(taskOptions) {
   return taskOptions;
 };
 
+var getOnResultOptions = function(taskOptions) {
+  taskOptions = taskOptions || {};
+
+  var onResultOptions = {
+    resultWaitTimeout: taskOptions.resultWaitTimeout || 3000,
+  };
+  return onResultOptions;
+};
+
 /**
  * Celery Client
  * @param {Object} brokerHandler                           - Broker handler
@@ -56,7 +65,7 @@ function Client(brokerHandler, backendHandler, defaultTaskOptions) {
 
   self._brokerHandler      = brokerHandler;
   self._backendHandler     = backendHandler;
-  self._defaultTaskOptions = canonicalizeTaskOptions(defaultTaskOptions) || {};
+  self._defaultTaskOptions = defaultTaskOptions || {};
 
   if (self._brokerHandler)  self.broker  = self._brokerHandler._handler;
   if (self._backendHandler) self.backend = self._backendHandler._handler;
@@ -65,15 +74,18 @@ function Client(brokerHandler, backendHandler, defaultTaskOptions) {
 Client.prototype.putTask = function(name, args, kwargs, taskOptions, callback, onResultCallback) {
   var self = this;
 
-  args        = args   || [];
-  kwargs      = kwargs || {};
-  taskOptions = canonicalizeTaskOptions(taskOptions) || {};
+  args   = args   || [];
+  kwargs = kwargs || {};
 
   var mergedTaskOptions = JSON.parse(JSON.stringify(self._defaultTaskOptions));
   Object.assign(mergedTaskOptions, taskOptions);
 
-  self._backendHandler.onResult(mergedTaskOptions.id, onResultCallback || nope);
-  self._brokerHandler.putTask(name, args, kwargs, mergedTaskOptions, callback || nope);
+  var celeryTaskOptions = canonicalizeTaskOptions(mergedTaskOptions) || {};
+  if (celeryTaskOptions.id) {
+    var onResultOptions = getOnResultOptions(taskOptions);
+    self._backendHandler.onResult(celeryTaskOptions.id, onResultOptions, onResultCallback || nope);
+  }
+  self._brokerHandler.putTask(name, args, kwargs, celeryTaskOptions, callback || nope);
 };
 
 Client.prototype.getResult = function(taskId, callback) {
