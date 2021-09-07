@@ -9,6 +9,7 @@ var getConfig = function(c) {
     port    : c.port,
     db      : c.db || c.database || 0,
     password: c.password || undefined,
+    tls     : c.tls      || undefined,
   };
 };
 
