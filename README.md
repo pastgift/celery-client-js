@@ -51,7 +51,7 @@ celeryClient.putTask('your-celery-project.task', args, kwargs, taskOptions,
 - origin
   - Task sender name
 - priority
-  - Task priority (0 ~ 255, 0 is the lowest)
+  - Task priority
 - queue
   - Target queue
 

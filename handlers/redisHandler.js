@@ -143,8 +143,7 @@ RedisHandler.prototype.putTask = function(name, args, kwargs, taskOptions, callb
   var targetQueue = message.properties.delivery_info.routing_key;
   var taskToSend = JSON.stringify(message);
 
-  var pushFunc = taskOptions.priority > 0 ? 'rpush' : 'lpush';
-  self._handler[pushFunc](targetQueue, taskToSend, function(err) {
+  self._handler.lpush(targetQueue, taskToSend, function(err) {
     if (err) return callback(err);
 
     var taskId = message.headers.id;

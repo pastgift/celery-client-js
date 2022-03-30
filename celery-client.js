@@ -27,8 +27,7 @@ var canonicalizeTaskOptions = function(taskOptions) {
   taskOptions.origin = taskOptions.origin || null;
 
   // Canonicalize properties
-  taskOptions.priority = taskOptions.priority || 0;
-  taskOptions.queue    = taskOptions.queue    || DEFAULT_QUEUE;
+  taskOptions.queue = taskOptions.queue || DEFAULT_QUEUE;
 
   taskOptions.deliveryMode = 2;
   taskOptions.deliveryTag = uuid.v4();
@@ -57,7 +56,7 @@ var getOnResultOptions = function(taskOptions) {
  * @param {Object} [defaultTaskOptions.timeLimit=null]     - Task time limit (in seconds)
  * @param {Object} [defaultTaskOptions.softTimeLimit=null] - Task time limit (soft, in seconds)
  * @param {Object} [defaultTaskOptions.origin=null]        - Task sender name
- * @param {Object} [defaultTaskOptions.priority=null]      - Task priority (0 ~ 255, 0 is the lowest)
+ * @param {Object} [defaultTaskOptions.priority=null]      - Task priority
  * @param {Object} [defaultTaskOptions.queue='celery']     - Target queue
  */
 function Client(brokerHandler, backendHandler, defaultTaskOptions) {
