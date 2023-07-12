@@ -13,10 +13,10 @@ var canonicalizeTaskOptions = function(taskOptions) {
   taskOptions.id = (taskOptions.id || uuid.v4()).toString();
 
   taskOptions.eta = taskOptions.eta
-                  ? new Date(taskOptions.eta).toISOString()
+                  ? new Date(taskOptions.eta).toISOString().replace(/Z$/g, '+00:00')
                   : null
   taskOptions.expires = taskOptions.expires
-                  ? new Date(taskOptions.expires).toISOString()
+                  ? new Date(taskOptions.expires).toISOString().replace(/Z$/g, '+00:00')
                   : null
 
   taskOptions.retries = parseInt(taskOptions.retries || 0);
