@@ -4,7 +4,7 @@ var redis = require('redis');
 var async = require('async');
 
 function getConfig(c, retryStrategy) {
-  var _c = {
+  var config = {
     host: c.host,
     port: c.port,
     db  : c.db  || c.database || 0,
@@ -12,27 +12,29 @@ function getConfig(c, retryStrategy) {
   };
 
   if (retryStrategy) {
-    _c.retry_strategy = retryStrategy;
+    config.retry_strategy = retryStrategy;
   }
 
-  if (!c.user && c.password) {
-    // Only password
-    _c.password = c.password;
-
-  } else if (c.user && c.password) {
-    // user and password
-    if (c.authType === 'aliyun') {
-      // Aliyun special auth type
-      _c.password = `${c.user}:${c.password}`;
+  if (c.password) {
+    if (!c.user) {
+      // Only password
+      config.password = c.password;
 
     } else {
-      // Default auth type
-      _c.user     = c.user;
-      _c.password = c.password;
+      // user and password
+      if (c.authType === 'aliyun') {
+        // Aliyun special auth type
+        config.password = `${c.user}:${c.password}`;
+
+      } else {
+        // Default auth type
+        config.user     = c.user;
+        config.password = c.password;
+      }
     }
   }
 
-  return _c;
+  return config;
 };
 
 function retryStrategy(options) {
