@@ -3,33 +3,51 @@
 var redis = require('redis');
 var async = require('async');
 
-var getConfig = function(c) {
-  return {
-    host    : c.host,
-    port    : c.port,
-    db      : c.db || c.database || 0,
-    password: c.password || undefined,
-    tls     : c.tls      || undefined,
+function getConfig(c, retryStrategy) {
+  var _c = {
+    host: c.host,
+    port: c.port,
+    db  : c.db  || c.database || 0,
+    tls : c.tls || undefined,
   };
-};
 
-function retryStrategy(options) {
-  if (options.error) {
-    console.error(options.error.toString());
+  if (retryStrategy) {
+    _c.retry_strategy = retryStrategy;
+  }
 
-    if (options.error.code === 'ECONNREFUSED') {
-        return new Error('The Redis refused the connection');
+  if (!c.user && c.password) {
+    // Only password
+    _c.password = c.password;
+
+  } else if (c.user && c.password) {
+    // user and password
+    if (c.authType === 'aliyun') {
+      // Aliyun special auth type
+      _c.password = `${c.user}:${c.password}`;
+
+    } else {
+      // Default auth type
+      _c.user     = c.user;
+      _c.password = c.password;
     }
   }
 
+  return _c;
+};
+
+function retryStrategy(options) {
+  if (options && options.error && options.error.code === "ECONNREFUSED") {
+    return new Error('The Redis refused the connection');
+  }
+
   return Math.min(options.attempt * 100, 3000);
-}
+};
 
 function RedisHandler(config) {
   var self = this;
 
-  config.retry_strategy = retryStrategy;
-  self._handler = redis.createClient(getConfig(config));
+  var _retryStrategy = config.disableRetry ? null : retryStrategy;
+  self._handler = redis.createClient(getConfig(config, _retryStrategy));
 
   // Fixed in Celery for saving/publishing task result.
   // See [https://github.com/celery/celery/blob/v4.1.0/celery/backends/base.py#L518]
